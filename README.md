@@ -1,7 +1,7 @@
 # EAGW2026
 Tutorials and Hands-On Sessio
 
-# AGN × Gravitational Waves — Working Group
+# AGN × Gravitational Waves — School + Workshop
 
 Exploratory project on the association between binary black hole mergers detected in
 gravitational waves (GW) and flares from active galactic nuclei (AGN). The working
