@@ -77,6 +77,7 @@ plausibly associated with mergers, and to quantify the significance of such asso
 |---|---|---|
 | GWOSC | GW event catalogue, skymaps, posteriors | https://gwosc.org |
 | ZTF AGN flare catalogue | Flare candidates (largely public) | https://github.com/Lyle0831/AGN-Flares |
+| ZTF AGN catalogue | ZTF AGN catalogue | https://iopscience.iop.org/article/10.3847/1538-4357/adf4e4 |
 | ZTF Lightcurve API (IRSA) | Original light curves | https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html |
 
 ---
