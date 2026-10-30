@@ -170,6 +170,8 @@ plausibly associated with mergers, and to quantify the significance of such asso
 
 ## For students — Hands-on school prep
 
+**School:** Multimessenger black hole mergers in active galactic nuclei
+
 Student-facing page (timetable, contacts, exercises): [`docs/`](docs/) · after GitHub Pages is on: https://AstroSuro.github.io/EAGW2026/
 
 **Setup and data download (do this by 13 November):** see **[docs/git-prep.md](docs/git-prep.md)**.
@@ -190,7 +192,7 @@ uv run jupyter notebook notebooks/exercises/
 | Path | What |
 |---|---|
 | [docs/git-prep.md](docs/git-prep.md) | `uv` setup + `scripts/fetch_data.py` instructions |
-| [docs/index.md](docs/index.md) | Hands-on school homepage |
+| [docs/index.md](docs/index.md) | School homepage |
 | [docs/sessions.md](docs/sessions.md) | Timetable |
 | [docs/exercises.md](docs/exercises.md) | Plotting exercises (GW + ZTF) |
 | `scripts/fetch_data.py` | Fetch PE / skymaps / ZTF from GWOSC & IRSA |

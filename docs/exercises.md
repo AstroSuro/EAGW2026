@@ -1,6 +1,6 @@
 ---
 title: Plotting exercises
-description: Fetch GW and ZTF data and make example plots for the Hands-on school
+description: Fetch GW and ZTF data and make example plots for Multimessenger black hole mergers in active galactic nuclei
 permalink: /exercises/
 ---
 

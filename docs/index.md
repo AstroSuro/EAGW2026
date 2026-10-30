@@ -1,10 +1,10 @@
 ---
 title: Home
-description: Hands-on School for EAGW2026
+description: Multimessenger black hole mergers in active galactic nuclei — EAGW2026 Hands-on School
 permalink: /
 ---
 
-## Hands-on School
+## Multimessenger black hole mergers in active galactic nuclei
 
 Three-day hands-on school at Ewha (19–21 November 2026), ahead of the [EAGW2026 workshop](https://sites.google.com/view/eagw2026/home) at Yonsei (23–25 November).
 
