@@ -78,6 +78,7 @@ plausibly associated with mergers, and to quantify the significance of such asso
 | GWOSC | GW event catalogue, skymaps, posteriors | https://gwosc.org |
 | ZTF AGN flare catalogue | Flare candidates (largely public) | https://github.com/Lyle0831/AGN-Flares |
 | ZTF AGN catalogue | ZTF AGN catalogue | https://iopscience.iop.org/article/10.3847/1538-4357/adf4e4 |
+| CRTS, ATLAS, ZTF AGN light curves catalogue | CAZ AGN light curves catalogue | https://www.aanda.org/articles/aa/full_html/2026/04/aa57582-25/aa57582-25.html |
 | ZTF Lightcurve API (IRSA) | Original light curves | https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html |
 
 ---
@@ -112,21 +113,22 @@ plausibly associated with mergers, and to quantify the significance of such asso
    the Binary Black Hole Merger Gravitational-Wave Event S190521g* —
    [DOI](https://doi.org/10.1103/PhysRevLett.124.251102) ·
    [arXiv:2006.14122](https://arxiv.org/abs/2006.14122)
-6. *A Standard Siren Cosmological Measurement from the Potential GW190521 Electromagnetic
+6. *Multimessenger Constraints on LIGO/Virgo/KAGRA Gravitational-wave Binary Black Holes Merging in Active Galactic Nucleus Disks* - https://iopscience.iop.org/article/10.3847/1538-4357/ae4d37   
+7. *A Standard Siren Cosmological Measurement from the Potential GW190521 Electromagnetic
    Counterpart ZTF19abanrhr* — [arXiv:2009.14057](https://arxiv.org/abs/2009.14057)
 
 ### Lensing constraints
 
-7. *Constraining Binary Mergers in AGN Disks Using the Non-observation of Lensed
+8. *Constraining Binary Mergers in AGN Disks Using the Non-observation of Lensed
    Gravitational Waves* — [arXiv:2408.13144](https://arxiv.org/abs/2408.13144) ·
    published as *ApJL*, [DOI](https://doi.org/10.3847/2041-8213/ad9ead)
 
 ### Closely related to this project
 
-8. *ApJL* (2025) — [DOI](https://doi.org/10.3847/2041-8213/adf31f) — **the most directly
+9. *ApJL* (2025) — [DOI](https://doi.org/10.3847/2041-8213/adf31f) — **the most directly
    relevant prior work.** Citing papers are worth tracking:
    [SciX citation list](https://scixplorer.org/abs/2025ApJ...989L..15Z/citations?p=1)
-9. *ApJ* — [DOI](https://doi.org/10.3847/1538-4357/ae4d37) — companion analysis;
+10. *ApJ* — [DOI](https://doi.org/10.3847/1538-4357/ae4d37) — companion analysis;
    code at [`tomas-cabrera/bbhagn`](https://github.com/tomas-cabrera/bbhagn)
 
 ---
