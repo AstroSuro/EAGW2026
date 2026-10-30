@@ -1,0 +1,9 @@
+[submodule "AGN-Flares"]
+	path = AGN-Flares
+	url = https://github.com/Lyle0831/AGN-Flares.git
+[submodule "bbhagn"]
+	path = bbhagn
+	url = https://github.com/tomas-cabrera/bbhagn.git
+[submodule "gwfast"]
+	path = gwfast
+	url = https://github.com/CosmoStatGW/gwfast.git
