@@ -1,0 +1,18 @@
+title: "EAGW2026 Hands-on"
+description: "Cross-correlating ZTF flares with GWs to study AGN channels — Hands-on School (19–21 Nov 2026, Ewha)"
+url: "https://AstroSuro.github.io"
+baseurl: "/EAGW2026"
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: true
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+exclude:
+  - Gemfile
+  - Gemfile.lock

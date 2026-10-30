@@ -165,3 +165,32 @@ plausibly associated with mergers, and to quantify the significance of such asso
       project can fill
 - [ ] Assess computational cost of AGN simulation tools before committing to that branch
 - [ ] Scope and freeze Project 1 before adding secondary componentsn
+
+---
+
+## For students — Hands-on school prep
+
+Student-facing page (timetable, contacts, exercises): [`docs/`](docs/) · after GitHub Pages is on: https://AstroSuro.github.io/EAGW2026/
+
+**Setup and data download (do this by 13 November):** see **[docs/git-prep.md](docs/git-prep.md)**.
+
+```bash
+# install uv: https://docs.astral.sh/uv/getting-started/installation/
+git clone https://github.com/AstroSuro/EAGW2026.git
+cd EAGW2026
+uv sync
+
+# official PE samples + sky maps + ZTF19abanrhr light curve
+uv run python scripts/fetch_data.py all --events GW190521
+
+uv run jupyter notebook notebooks/first_light.ipynb
+uv run jupyter notebook notebooks/exercises/
+```
+
+| Path | What |
+|---|---|
+| [docs/git-prep.md](docs/git-prep.md) | `uv` setup + `scripts/fetch_data.py` instructions |
+| [docs/index.md](docs/index.md) | Hands-on school homepage |
+| [docs/sessions.md](docs/sessions.md) | Timetable |
+| [docs/exercises.md](docs/exercises.md) | Plotting exercises (GW + ZTF) |
+| `scripts/fetch_data.py` | Fetch PE / skymaps / ZTF from GWOSC & IRSA |

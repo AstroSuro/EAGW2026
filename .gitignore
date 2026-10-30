@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+.env
+.venv/
+*.h5
+*.hdf5
+*.fits
+*.fit
+*.tar.gz
+data/**
+!data/.gitkeep
+.conda/
+uv.lock.bak
