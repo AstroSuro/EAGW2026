@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;560;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,650&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body>
+  <header class="site-header">
+    <p class="eyebrow">EAGW2026 · Ewha Womans University · 19–21 November 2026</p>
+    <h1 class="brand"><a href="{{ '/' | relative_url }}">Multimessenger black hole mergers in active galactic nuclei</a></h1>
+    <p class="tagline">EAGW2026 Hands-on School · 19–21 November 2026 · Ewha</p>
+    {% include nav.html %}
+  </header>
+  <main class="content">
+    {{ content }}
+  </main>
+  <footer class="site-footer">
+    <p>Draft site for SOC discussion (30 Oct 2026). Workshop homepage:
+      <a href="https://sites.google.com/view/eagw2026/home">EAGW2026</a>.
+      Contact: chunglee.kim AT ewha.ac.kr</p>
+  </footer>
+</body>
+</html>

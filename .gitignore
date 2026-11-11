@@ -1,1 +1,19 @@
+<<<<<<< HEAD
 ZTF-lightcurves-extraction-from-IRAS/
+=======
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.DS_Store
+.env
+.venv/
+*.h5
+*.hdf5
+*.fits
+*.fit
+*.tar.gz
+data/**
+!data/.gitkeep
+.conda/
+uv.lock.bak
+>>>>>>> 7b54e409eae3f0791f16089b02bb1f1c78e4a84b
