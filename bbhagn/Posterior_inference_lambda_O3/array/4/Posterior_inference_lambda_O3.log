@@ -1,0 +1,58 @@
+******************** Initializing ********************
+******************** Preparing inputs ********************
+Setting up science...
+
+ J124942.30+344928.9
+g 0.0013128013634248203
+r 0.001630251309015544
+
+ J183412.42+365655.3
+g 0.11712449541510501
+r 0.23444377733647181
+
+ J181719.94+541910.0
+g 0.00013035403565244107
+r 0.005735988215214437
+
+ J224333.95+760619.2
+g 0.4197957482989701
+r 0.5043173821202837
+
+ J120437.98+500024.0
+g 2.3765643967402398e-07
+r 0.001176532795184178
+
+ J154342.46+461233.4
+g 0.5976986732816975
+r 0.4466683800840303
+Using 76/76 GWs with 0.0 <= mass_1_source < 200.0...
+multiprocessing.pool.RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "/hildafs/projects/phy200025p/tcabrera/.conda/envs/bbhagn/lib/python3.11/multiprocessing/pool.py", line 125, in worker
+    result = (True, func(*args, **kwds))
+                    ^^^^^^^^^^^^^^^^^^^
+  File "/hildafs/projects/phy200025p/tcabrera/.conda/envs/bbhagn/lib/python3.11/multiprocessing/pool.py", line 51, in starmapstar
+    return list(itertools.starmap(args[0], args[1]))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hildafs/projects/phy220048p/tcabrera/bbhagn/bbhagn/utils/inference.py", line 369, in _setup_task
+    assoc_path = config["assoc_csv"]
+                 ~~~~~~^^^^^^^^^^^^^
+KeyError: 'assoc_csv'
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/hildafs/projects/phy220048p/tcabrera/bbhagn/bbhagn/Posterior_inference_lambda_O3/Posterior_inference_lambda_O3.py", line 164, in <module>
+    lnprob_args = inference.setup(config, nproc=config["nproc"])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hildafs/projects/phy220048p/tcabrera/bbhagn/bbhagn/utils/inference.py", line 573, in setup
+    results = p.starmap(
+              ^^^^^^^^^^
+  File "/hildafs/projects/phy200025p/tcabrera/.conda/envs/bbhagn/lib/python3.11/multiprocessing/pool.py", line 375, in starmap
+    return self._map_async(func, iterable, starmapstar, chunksize).get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/hildafs/projects/phy200025p/tcabrera/.conda/envs/bbhagn/lib/python3.11/multiprocessing/pool.py", line 774, in get
+    raise self._value
+KeyError: 'assoc_csv'

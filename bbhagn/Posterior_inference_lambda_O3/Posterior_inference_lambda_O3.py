@@ -1,0 +1,253 @@
+"""! Script for the calculations described in https://arxiv.org/abs/2103.16069 """
+
+###############################################################################
+
+import os
+import os.path as pa
+import sys
+from multiprocessing import Pool
+
+import astropy.units as u
+import astropy_healpix as ah
+import corner
+import emcee
+import numpy as np
+import pandas as pd
+import yaml
+from astropy.cosmology import FlatLambdaCDM
+from ligo.skymap.postprocess.crossmatch import crossmatch
+from numpy.polynomial.polynomial import Polynomial
+
+# Local imports
+sys.path.append(pa.dirname(pa.dirname(__file__)))
+from myagn import distributions as myagndistributions
+from myagn.flares import models as myflaremodels
+import utils.inference as inference
+import utils.io as io
+from utils.paths import DATADIR, PROJDIR
+
+###############################################################################
+
+##############################
+###        Functions       ###
+##############################
+
+
+def lnprior(theta):
+    """! Prior function for the lambda and H0 parameters.
+    Currently defined as a uniform distibution in the initial domain.
+    Returns 0.0 if theta is in the initial domain; -np.inf otherwise.
+
+    @param  theta       The argument of the function.
+                        Should be a tuple[-like]: (lambda, H0)
+
+    """
+    # Extract values
+    lam_pr = theta
+    # If the values are in the uniform domain
+    if 0.0 < lam_pr < 1.0:
+        return 0.0
+    # Otherwise
+    return -np.inf
+
+
+def lnprob(
+    theta,
+    H0,
+    omegam,
+    s_arrs,
+    b_arrs,
+    frac_det,
+    n_agns,
+    flares_per_agn_average,
+    flare_rate_distribution,
+):
+    """! Calculates the log posterior probability, given some signal and background.
+
+    @param  theta               Tuple of hypothesis lambda and H0
+    @param  cand_hpixs_arr      Array of healpix index arrays for each followup
+                                (shape=(N_GW_followup)(# of candidates in followup))
+    @param  cand_zs_arr         Array of redshift arrays for each followup
+                                (shape=(N_GW_followup)(# of candidates in followup))
+    @param  pb                  Array of probability arrays for each candidate's healpixes
+                                (shape=(N_GW_followup)(# of healpix in idx_sort_cut region))
+    @param  distnorm            Normalization constant on distance estimate (takes into account d_L^2 weighting)
+    @param  distmu              Mean of distance estimate for event, in Mpc
+    @param  distsigma           Uncertainty on distance estimate, in Mpc
+    @param  f                   Fraction of detected AGN flares to total AGN flares
+    @param  N_GW_followups      Number of GW followups
+
+    @return lp+lnlikesum        (log) posterior probability
+
+    """
+    # Calculate prior; if the prior is not finite, return -np.inf (event outside of prescribed domain)
+    lp = lnprior(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+
+    # Extract lambda values
+    lam_po = theta
+
+    # Package parameters
+    theta_all = (lam_po, H0, omegam)
+
+    # Calculate lnlike
+    lnlike = inference.lnlike_all(
+        theta_all,
+        s_arrs,
+        b_arrs,
+        frac_det,
+        n_agns,
+        flares_per_agn_average,
+        flare_rate_distribution,
+    )
+
+    return lp + lnlike
+
+
+###############################################################################
+
+if __name__ == "__main__":
+
+    ##############################
+    ###       Constants        ###
+    ##############################
+    print("*" * 20, "Initializing", "*" * 20)
+
+    # Load yaml file
+    config_file = sys.argv[
+        1
+    ]  # "/hildafs/home/tcabrera/HIPAL/bbhagn/bbhagn/config.yaml"
+    config_dir = pa.dirname(config_file)
+    config = yaml.safe_load(open(config_file))
+    config["config_file"] = config_file
+
+    # Parse AGN distribution config
+    for k, v in config["agn_distribution"].items():
+        if v["model"] == "ConstantPhysicalDensity":
+            v["args"] = v["args"] * u.Mpc**-3
+        if "brightness_limits" in v["density_kwargs"]:
+            if "brightness_units" not in v["density_kwargs"]:
+                raise ValueError(
+                    "Must specify brightness_units if brightness_limits is given."
+                )
+            if v["density_kwargs"]["brightness_units"] == "ABmag":
+                bu = u.ABmag
+            elif v["density_kwargs"]["brightness_units"] == "erg/s":
+                bu = u.erg / u.s
+            else:
+                raise ValueError("brightness_units must be 'ABmag' or 'erg/s'.")
+            v["density_kwargs"]["brightness_limits"] = [
+                float(bl) for bl in v["density_kwargs"]["brightness_limits"]
+            ] * bu
+            v["density_kwargs"].pop("brightness_units")
+
+    # Define constants
+    df_gw = pd.read_csv(config["gw_csv"])
+    N_GW_followups = df_gw.shape[0]  # [50,10]
+
+    # Calculate maximum distance for background events
+    cosmo = FlatLambdaCDM(H0=config["H00"], Om0=config["Om0"])
+    maxdist = cosmo.luminosity_distance(config["z_max_b"])
+    ds_arr_norm = np.linspace(0, maxdist.value, num=1000)
+
+    ##############################
+    ###        Load/calc       ###
+    ##############################
+    print("*" * 20, "Preparing inputs", "*" * 20)
+
+    #########################
+    ###      Science      ###
+    #########################
+    print("Setting up science...")
+
+    lnprob_args = inference.setup(config, nproc=config["nproc"])
+
+    #########################
+    ###    Calc. arrs     ###
+    #########################
+    print("Calculating signal and background arrays...")
+
+    s_arrs, b_arrs, n_agns = inference.calc_arrs(
+        config["H00"],
+        config["Om0"],
+        *lnprob_args[:-1],  # last is flares_per_agn_average
+        config["agn_distribution"]["astrophysical"],
+        config["z_min_b"],
+        config["z_max_b"],
+    )
+
+    ##############################
+    ###          MCMC          ###
+    ##############################
+    print("*" * 20, "MCMC", "*" * 20)
+
+    # Initialize some random lambdas and H0s for MCMC (w/ gaussian perturbations)
+    # np.random.randn(nwalkers, ndim=nparam)
+    pos = [config["lambda0"]] + 1e-4 * np.random.randn(config["nwalkers"], 1)
+    nwalkers, ndim = pos.shape
+    # Define sampler args
+    sampler_args = (nwalkers, ndim, lnprob)
+    # Define sampler kwargs
+    sampler_kwargs = {
+        "args": (
+            config["H00"],
+            config["Om0"],
+            s_arrs,
+            b_arrs,
+            config["frac_det"],
+            n_agns,
+            lnprob_args[-1],  # flares_per_agn_average
+            config["flare_rate"]["distribution"],
+        ),
+    }
+    # Define run_mcmc args
+    mcmc_args = (pos, config["nsteps"])
+    # Define run_mcmc kwargs
+    mcmc_kwargs = {
+        "progress": True,
+    }
+    # Run the MCMC, in parallel or serial
+    if config["nproc"] != 1:
+        with Pool(config["nproc"]) as pool:
+            sampler_kwargs["pool"] = pool
+            # Initialize sampler + run MCMC
+            sampler = emcee.EnsembleSampler(*sampler_args, **sampler_kwargs)
+            sampler.run_mcmc(*mcmc_args, **mcmc_kwargs)
+    else:
+        # Initialize sampler + run MCMC
+        sampler = emcee.EnsembleSampler(*sampler_args, **sampler_kwargs)
+        sampler.run_mcmc(*mcmc_args, **mcmc_kwargs)
+
+    ##############################
+    ###         Output         ###
+    ##############################
+    print("*" * 20, "Output", "*" * 20)
+
+    # Reduce and retreive MCMC samples
+    flat_samples = sampler.get_chain(discard=100, thin=15, flat=True)
+    print(flat_samples.shape)
+
+    # Save data
+    print("Saving data...")
+    np.savetxt(f"{config_dir}/O4_samples_graham23.dat", flat_samples)
+
+    ##############################
+    ###       Corner plot      ###
+    ##############################
+    print("*" * 20, "Corner plot", "*" * 20)
+
+    # Make+save corner plot
+    print("Making corner plot...")
+    labels = [r"$\lambda$", r"$H_0$ [km/s/Mpc]"]
+    fig = corner.corner(
+        flat_samples,
+        labels=labels,
+        # truths=[lamb, H0],
+        quantiles=[0.16, 0.5, 0.84],
+        show_titles=True,
+        title_kwargs={"fontsize": 12},
+    )
+    fig.savefig(f"{config_dir}/corner_O4_graham23.png", dpi=200)
+
+    print("Done.")

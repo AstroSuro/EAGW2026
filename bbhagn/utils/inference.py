@@ -1,0 +1,612 @@
+import os.path as pa
+import sys
+from math import pi
+
+import astropy.units as u
+import astropy_healpix as ah
+import numpy as np
+import pandas as pd
+from astropy.coordinates import SkyCoord
+from astropy.time import Time
+from astropy.io import fits
+from astropy.cosmology import FlatLambdaCDM, Planck15
+from ligo.skymap.io import read_sky_map
+from ligo.skymap.postprocess.crossmatch import crossmatch
+import ligo.skymap.moc as lsm_moc
+from numpy.polynomial.polynomial import Polynomial
+from scipy.stats import norm
+from multiprocessing import current_process
+
+# Local imports
+PROJDIR = pa.dirname(pa.dirname(__file__))
+sys.path.append(PROJDIR)
+from myagn import distributions as myagndistributions
+from myagn.flares import models as myflaremodels
+import utils.io as io
+from utils.gwselection import selection_beta
+
+######################################################################
+
+
+def mask_flares_in_followup(
+    healpix_path,
+    flare_coords,
+    flare_times,
+    cosmo=FlatLambdaCDM(H0=70, Om0=0.3),
+    ci=0.9,
+    dt_followup=200 * u.day,
+):
+    """Return mask of flares in the given healpix ci.
+
+    Parameters
+    ----------
+    healpix_path : _type_
+        _description_
+    flare_coords : SkyCoord
+        Assumed to be 3D for now
+    ci : float, optional
+        _description_, by default 0.9
+    """
+    ### Spatial match
+    # Load healpix
+    sm = read_sky_map(healpix_path, moc=True)
+    # Perform crossmatch
+    xm = crossmatch(sm, flare_coords, cosmology=True, cosmo=cosmo)
+    # Return mask on flare coords
+    smask = xm.searched_prob_vol <= ci
+    ### Temporal match
+    # Get gw time
+    with fits.open(healpix_path) as hdul:
+        gw_time = Time(hdul[1].header["DATE-OBS"], format="isot", scale="utc")
+    # Calculate time difference, mask
+    delta_t = flare_times - gw_time
+    tmask = (delta_t >= 0 * u.day) & (delta_t < dt_followup)
+    # Return combined mask
+    mask = smask & tmask
+    return mask
+
+
+def gauss(mu_gauss, std_gauss, x_value):
+    """! Calculate value of gaussian(mu_gauss, std_gauss) at x_value."""
+    return np.exp(-((x_value - mu_gauss) ** 2.0) / (2 * std_gauss**2.0)) / (
+        std_gauss * (2.0 * pi) ** 0.5
+    )
+
+
+def lnlike(theta, s_arr, b_arr, frac_det, n_flares_bg):
+    """! Calculates the log likelihood on the given lambda for a single GW event.
+    c.f. eq. 7 in the paper.
+
+    @param  lam_li      lambda-like; the parameter to evaluate the likelihood of.
+                        lambda = fraction of BBH mergers that produce AGN flares
+    @param  s_arr       Probabilities for each of len(s_arr) BBH AGN flares
+    @param  b_arr       Probabilities for each of len(b_arr) background AGN flares
+    @param  f           Fraction of detected to real flares
+
+    """
+    # Extract values
+    lam_li, H0_li, omegam_li = theta
+
+    return (
+        np.sum(np.log(lam_li * s_arr + b_arr))
+        - np.log(selection_beta(H0_li))
+        - frac_det * (lam_li + n_flares_bg)
+    )
+
+
+def lnlike_all(
+    theta,
+    s_arrs,
+    b_arrs,
+    frac_det,
+    n_agns,
+    flares_per_agn_average,
+    flare_rate_distribution,
+):
+    # Extract values
+    lam_po, H0_po, omega_po = theta
+
+    # Sample flare rate
+    # Currently using process id as seed
+    # Note that the pid does not index the processes spawned by emcee but appears to be the python process id;
+    # in this case the numbers are ~70-80
+    # Not sure if this ensures that the rng is different for each process,
+    #   but it's better than the same seed
+    rng = np.random.default_rng(int(current_process().name.split("-")[-1]))
+    fr_dist = getattr(rng, flare_rate_distribution["type"])
+    flare_rate = np.nan * np.ones_like(flares_per_agn_average)
+    for i, f in enumerate(flares_per_agn_average):
+        # Continue if nan flare rate
+        if np.isnan(f):
+            continue
+        # Continue if flare rate already set;
+        #   note that below, flare_rate entries are updated wherever flares_per_agn_average is the same
+        if ~np.isnan(flare_rate[i]):
+            continue
+        # Sample from flare rate distribution until a value > 0 is drawn
+        fr = -1
+        while fr < 0:
+            fr = fr_dist(f, **flare_rate_distribution["kwargs"])
+        # Save rate
+        flare_rate[flares_per_agn_average == f] = fr
+
+    # Calculate maximum in n_flares_bgs
+    max_n_agn = np.nanmax([np.nanmax(n) for n in n_agns if len(n) > 0])
+    max_n_flares_bg = max_n_agn * np.nanmax(flares_per_agn_average)
+    # TODO: make sure ^^these are being computed and used correctly
+
+    # Iterate over GW followups
+    lnlike_arr = np.zeros(len(s_arrs))
+    for i in range(len(s_arrs)):
+        # Get arrays
+        s_arr_i = s_arrs[i]
+        b_arr_i = b_arrs[i]
+        n_agns_i = n_agns[i]
+
+        # Get non-filled values
+        s_arr_i = s_arr_i[b_arr_i != 1]
+        b_arr_i = b_arr_i[b_arr_i != 1]
+        ####################
+        ###  Likelihood  ###
+        ####################
+        # If there are any candidates, calculate the log likelihood
+        if (s_arr_i.shape[0]) > 0:
+            # n_agns_i = n_agns_i[~np.isnan(n_agns_i)]
+            n_flares_bgs_i = n_agns_i * flare_rate
+            n_flares_bgs_i = n_flares_bgs_i[b_arrs[i] != 1]
+
+            lnlike_arr[i] = lnlike(
+                theta,
+                s_arr_i,
+                b_arr_i * n_flares_bgs_i,
+                frac_det,
+                np.nanmax(n_flares_bgs_i),
+            )
+
+        else:
+            # I think we need to do something different here, maybe s_arr needs to be set to 0
+            # lnlike_arr[i] = -lam_po
+            lnlike_arr[i] = -np.log(selection_beta(H0_po)) - frac_det * (
+                lam_po + max_n_flares_bg
+            )
+
+    # Sum log likelihoods and return with prior
+    lnlikesum = np.sum(lnlike_arr, axis=0)
+
+    return lnlikesum
+
+
+def calc_s_arr(
+    pbden,
+    distnorm,
+    distmu,
+    distsigma,
+    z_flares,
+    cosmo,
+):
+    ncands = z_flares.shape[0]
+    dL_flares = cosmo.luminosity_distance(z_flares)
+    # ddL/dz, to transform dprob/dd_L to dprob/dz
+    jacobian = (
+        cosmo.comoving_distance(z_flares).value
+        + (1.0 + z_flares) / cosmo.H(z_flares).value
+    )
+    # Calculate signal probability densities, multiplying HEALPix and redshift contributions
+    s_arr = (
+        pbden  # HEALPix probability density
+        * distnorm  # redshift probability density
+        * norm(distmu, distsigma).pdf(dL_flares)
+        * dL_flares**2
+        * jacobian
+    )
+    return s_arr
+
+
+def calc_b_arr(
+    z_flares,
+    cosmo,
+    agndist_config,
+):
+    # NOTE: Since implementing the flares_per_agn sampling, b_arr is the number density of AGN,
+    # i.e. it still needs to be multiplied by [n_flares_per_agn] to get the background AGN flare number density
+
+    # Get AGN distribution
+    # Hardcoded values use QLFHopkins for all
+    agndist = getattr(
+        myagndistributions,
+        agndist_config["model"],
+    )(
+        *agndist_config["args"],
+        **agndist_config["kwargs"],
+    )
+
+    # If Milliquas, add Graham+23 cuts
+    # z <= 1.2 cut not included, because Graham+23 already does the 3D crossmatch and the z_grid we use here extends to 2.0
+    if agndist_config["model"] == "Milliquas":
+        mask = np.array(
+            ["q" not in t for t in agndist._catalog["Type"]]
+        )  # & (agndist._catalog["z"] <= 1.2)
+        agndist._catalog = agndist._catalog[mask]
+
+    # Calculate background probability densities
+    b_arr = agndist.dn_dOmega_dz(
+        z_flares,
+        *agndist_config["density_args"],
+        cosmo=cosmo,
+        **agndist_config["density_kwargs"],
+    )
+
+    return b_arr
+
+
+def calc_arrs(
+    H0,
+    omegam,
+    f_covers,
+    distnorm,
+    distmu,
+    distsigma,
+    cand_hpxprobden_arr,
+    cand_zs_arr,
+    n_agn_coeffs,
+    agndist_config,
+    z_min_b,
+    z_max_b,
+):
+    # Initialize cosmology
+    thiscosmo = FlatLambdaCDM(H0=H0, Om0=omegam)
+    # thiscosmo = Planck15
+
+    # Iterate through true associations
+    # NOTE: np.<>_like(u.Quantity) returns a Quantity with the same unit as the input
+    s_arrs = np.zeros_like(cand_hpxprobden_arr)
+    b_arrs = np.ones_like(cand_hpxprobden_arr)
+    n_agns = np.ones_like(cand_hpxprobden_arr).value * np.nan
+    # Iterate over GW followups
+    for gwi in range(cand_hpxprobden_arr.shape[0]):
+        # Get flare indices
+        fis = list(np.where(~np.isnan(cand_hpxprobden_arr[gwi]))[0])
+
+        ####################
+        ###Expected flares##
+        ####################
+
+        # Use coeffs to interpolate number of AGN in volume
+        n_agn = np.polynomial.Polynomial(n_agn_coeffs[gwi])(H0)
+
+        # Add to array
+        n_agns[gwi, :] = n_agn
+
+        ##############################
+        # Skip remainder if no candidates
+        if len(fis) == 0:
+            continue
+        ##############################
+
+        # Get/calculate candidate coordinates, number of candidates for this followup
+        followup_zs = cand_zs_arr[fis]
+        ncands = followup_zs.shape[0]
+
+        ####################
+        ###    Signal    ###
+        ####################
+
+        # Calculate GW counterpart probabilities
+        s_arr = calc_s_arr(
+            cand_hpxprobden_arr[gwi][fis],
+            distnorm[gwi][fis],
+            distmu[gwi][fis],
+            distsigma[gwi][fis],
+            followup_zs,
+            thiscosmo,
+        )
+
+        ####################
+        ###  Background  ###
+        ####################
+
+        # Calculate background AGN probabilities
+        b_arr = calc_b_arr(
+            followup_zs,
+            thiscosmo,
+            agndist_config,
+        )
+
+        ####################
+        ###    Add to arrs   ###
+        ####################
+
+        # Add to arrays
+        s_arrs[gwi, fis] = s_arr
+        b_arrs[gwi, fis] = b_arr
+
+    return s_arrs.to(1 / u.sr).value, b_arrs.to(1 / u.sr).value, n_agns
+
+
+def _setup_task(i, config):
+    outstring = ""
+    outstring += ("*" * 30) + "\n"
+    outstring += f"Index {i}\n"
+    return_dict = {}
+    cosmo = FlatLambdaCDM(H0=config["H00"], Om0=config["Om0"])
+    df_gw = pd.read_csv(config["gw_csv"])
+    df_flare = pd.read_csv(config["flare_csv"])
+    flare_coords = SkyCoord(
+        ra=df_flare["ra"].values * u.deg,
+        dec=df_flare["dec"].values * u.deg,
+        distance=cosmo.luminosity_distance(df_flare["Redshift"].values),
+    )
+    flare_times = Time(df_flare["mjd"], format="mjd")
+
+    ##############################
+    ###  Signals (BBH flares)  ###
+    ##############################
+
+    # Get eventname, strip asterisk if needed
+    gweventname = df_gw["gweventname"][i]
+    if gweventname.endswith("*"):
+        gweventname = gweventname[:-1]
+    outstring += f"{gweventname}\n"
+
+    ##############################
+    ###       GW skymap        ###
+    ##############################
+
+    # Load skymap
+    sm = read_sky_map(df_gw["skymap_path"][i], moc=True)
+
+    # Get data from skymap
+    pbden = sm["PROBDENSITY"]
+    distnorm = sm["DISTNORM"]
+    distmu = sm["DISTMU"]
+    distsigma = sm["DISTSIGMA"]
+
+    ##############################
+    ###         Flares         ###
+    ##############################
+
+    # Get flares for this followup
+    assoc_path = config["assoc_csv"]
+    if config["assoc_csv"] == "None":
+        assoc_path = pa.join(pa.dirname(config["config_file"]), "assoc.csv")
+    if not pa.exists(config["assoc_csv"]) or config["force_assoc_calc"]:
+        mask = mask_flares_in_followup(
+            df_gw["skymap_path"][i],
+            flare_coords,
+            flare_times,
+            cosmo=cosmo,
+            dt_followup=config["dt_followup"] * u.day,
+        )
+    else:
+        df_assoc = pd.read_csv(assoc_path)
+        df_assoc.set_index("gweventname")
+        mask = df_assoc[gweventname]
+    followup_flares = df_flare["flarename"][mask]
+    return_dict["flare_mask"] = mask
+    outstring += f"{sum(mask)}/{len(mask)} coincident flares:\n"
+    for f in followup_flares:
+        outstring += f"\t{f}\n"
+
+    # Iterate over flares
+    pbdens = []
+    distnorms = []
+    distmus = []
+    distsigmas = []
+    for _, fr in df_flare.iterrows():
+        # Check if flare in followup
+        if fr["flarename"] not in followup_flares.values:
+            pbdens.append(np.nan)
+            distnorms.append(np.nan)
+            distmus.append(np.nan)
+            distsigmas.append(np.nan)
+            continue
+
+        # Get uniqs for the flare
+        lon = fr["ra"] * u.deg
+        lat = fr["dec"] * u.deg
+        uniq = io.lonlat_to_uniq(
+            lon,
+            lat,
+            sm["UNIQ"],
+        )
+        ind_sm = np.where(sm["UNIQ"] == uniq)[0][0]
+
+        # Get data for flare
+        pbdens.append(pbden[ind_sm])
+        distnorms.append(distnorm[ind_sm])
+        distmus.append(distmu[ind_sm])
+        distsigmas.append(distsigma[ind_sm])
+
+    # Add to return_dict
+    return_dict["pbdens"] = pbdens * pbden.unit
+    return_dict["distnorms"] = distnorms * distnorm.unit
+    return_dict["distmus"] = distmus * distmu.unit
+    return_dict["distsigmas"] = distsigmas * distsigma.unit
+
+    ##############################
+    ###    Background rate     ###
+    ##############################
+
+    ### Set AGN count model (polynomial as function of H0)
+    # Get AGN distribution
+    agnconfig_obs = config["agn_distribution"]["observed"]
+    agndist = getattr(
+        myagndistributions,
+        agnconfig_obs["model"],
+    )(
+        *agnconfig_obs["args"],
+        **agnconfig_obs["kwargs"],
+    )
+
+    # Set density_kwargs as attributes
+    for k, v in agnconfig_obs["density_kwargs"].items():
+        setattr(agndist, k, v)
+
+    # Model number of AGNs
+    # Define volume integrand
+    def volume_integrand(
+        dL,
+        cosmo=FlatLambdaCDM(H0=config["H00"], Om0=config["Om0"]),
+    ):
+        # Includes unit conversions to cohere with myagn convention
+        return (
+            agndist._dn_d3Mpc_at_dL(
+                dL * u.Mpc,
+                cosmo=cosmo,
+                **agnconfig_obs["density_kwargs"],
+            )
+            .to(u.Mpc**-3)
+            .value
+        )
+
+    # Load skymap
+    sm = read_sky_map(df_gw["skymap_path"][i], moc=True)
+    # Iterate over a sample of H0 values
+    n_agns = []
+    hs = np.linspace(20, 120, num=10)
+    for h in hs:
+        tempcosmo = FlatLambdaCDM(H0=h, Om0=config["Om0"])
+        n_agn = crossmatch(
+            sm,
+            contours=[0.9],
+            cosmology=True,
+            cosmo=tempcosmo,
+            volume_integrand=volume_integrand,
+        ).contour_vols[0]
+        n_agns.append(n_agn)
+    # Calculate polynomial fit to model n_agn as a function of H0
+    fit = Polynomial.fit(hs, n_agns, 4)
+    coeffs = fit.convert().coef
+    return_dict["n_agn_coeffs"] = coeffs
+    del sm
+
+    # Append f_cover for GW event
+    return_dict["f_covers"] = df_gw["f_cover"][i]
+
+    # Print outstring
+    outstring += ("*" * 30) + "\n"
+    print(outstring)
+
+    return return_dict
+
+
+def setup(config, nproc=1):
+    df_gw = pd.read_csv(config["gw_csv"])
+    df_flare = pd.read_csv(config["flare_csv"])
+    ##############################
+    ###    Flares  ###
+    ##############################
+
+    # Set cand_zs
+    cand_zs = df_flare["Redshift"].values
+
+    # flares_per_agn rates
+    # Set flare model
+    flaremodel = getattr(
+        myflaremodels,
+        config["flare_rate"]["model"],
+    )(
+        *config["flare_rate"]["args"],
+        **config["flare_rate"]["kwargs"],
+    )
+
+    # Iterate over flares
+    flares_per_agn_average = []
+    for _, fr in df_flare.iterrows():
+        # Iterate over filters, using only g and r
+        rates = []
+        print("\n", fr["flarename"])
+        for f in ["g", "r"]:
+            # Calculate structure function prob
+            # 3σ = 3 * t_rise is a conservative estimate for the Δt of the Δm
+            # / (1+z) converts to rest frame timescale
+            if config["flare_rate"]["model"] == "ConstantRate":
+                prob = flaremodel.flare_rate()
+            elif config["flare_rate"]["model"] == "Kimura20":
+                delta_t = 3 * fr[f"t_rise_{f}"] / (1 + fr["Redshift"])
+                prob = flaremodel.flare_rate(
+                    f,
+                    delta_t,
+                    -fr[f"f_peak_{f}"],
+                    fr["Redshift"],
+                )
+            else:
+                raise ValueError(
+                    f"Unknown flare rate model {config['flare_rate']['model']}"
+                )
+
+            # Scale to follow-up window
+            rate = prob * config["dt_followup"]
+            print(f, rate)
+
+            # Append to list
+            rates.append(rate)
+
+        # Save lowest rate
+        flares_per_agn_average.append(np.nanmin(rates))
+
+    ##############################
+    ###    GWs + flares        ###
+    ##############################
+
+    # Select GWs
+    idxs = df_gw.index
+    masks = []
+    # Mass cut, ignoring if mass is nan
+    massmask = (df_gw[config["bbhmass_type"]] >= config["bbhmass_min"]) & (
+        df_gw[config["bbhmass_type"]] < config["bbhmass_max"]
+    )
+    massmask = massmask | (np.isnan(df_gw[config["bbhmass_type"]]))
+    masks.append(massmask)
+    # Combine masks, select idxs
+    mask = np.all(np.array(masks), axis=0)
+    idxs = idxs[mask]
+    print(
+        f"Using {len(idxs)}/{df_gw.shape[0]} GWs with {config['bbhmass_min']} <= {config['bbhmass_type']} < {config['bbhmass_max']}..."
+    )
+
+    # Iterate over followups
+    if nproc > 1:
+        from multiprocessing import Pool
+
+        with Pool(nproc) as p:
+            results = p.starmap(
+                _setup_task,
+                [(i, config) for i in idxs],
+            )
+    else:
+        results = [_setup_task(i, config) for i in idxs]
+
+    # Unpack results
+    f_covers = np.array([r["f_covers"] for r in results])
+    distnorms = u.Quantity([r["distnorms"] for r in results])
+    distmus = u.Quantity([r["distmus"] for r in results])
+    distsigmas = u.Quantity([r["distsigmas"] for r in results])
+    pbdens = u.Quantity([r["pbdens"] for r in results])
+    n_agn_coeffs = [r["n_agn_coeffs"] for r in results]
+    flares_per_agn_average = np.array(flares_per_agn_average)
+
+    # Save associations
+    if not pa.exists(config["assoc_csv"]):
+        # Make df
+        df_assoc = pd.DataFrame(
+            [r["flare_mask"] for r in results],
+            index=df_gw.loc[idxs]["gweventname"],
+            columns=df_flare["flarename"],
+        )
+        if config["assoc_csv"] == "None":
+            assoc_file = pa.join(pa.dirname(config["config_file"]), "assoc.csv")
+        else:
+            assoc_file = config["assoc_csv"]
+        df_assoc.to_csv(assoc_file)
+
+    return (
+        f_covers,
+        distnorms,
+        distmus,
+        distsigmas,
+        pbdens,
+        cand_zs,
+        n_agn_coeffs,
+        flares_per_agn_average,
+    )

@@ -1,0 +1,8 @@
+Usage: python lambda_posteriors.py <path_to_directory>
+Defaulting to array jobs [11].
+Quantiles 0.1:  0.001
+Quantiles 0.16:  0.002
+Quantiles 0.5:  0.008
+Quantiles 0.84:  0.022
+Quantiles 0.9:  0.027
+Bayes factor [peak=0.000]/0: 1.0
