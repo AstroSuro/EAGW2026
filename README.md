@@ -131,18 +131,6 @@ plausibly associated with mergers, and to quantify the significance of such asso
 10. *ApJ* — [DOI](https://doi.org/10.3847/1538-4357/ae4d37) — companion analysis;
    code at [`tomas-cabrera/bbhagn`](https://github.com/tomas-cabrera/bbhagn)
 
-## Open Action Items
-
-- [ ] All members register for EAGW 2026
-- [ ] Albert — deliver ZTF flare + GW + AGN association tutorial
-- [ ] Confirm citations for references 3, 4, 8 and 9
-- [ ] Review the citation list of the closely related ApJL paper to identify gaps our
-      project can fill
-- [ ] Assess computational cost of AGN simulation tools before committing to that branch
-- [ ] Scope and freeze Project 1 before adding secondary componentsn
-
----
-
 ## For students — Hands-on school prep
 
 **School:** Multimessenger black hole mergers in active galactic nuclei
