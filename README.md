@@ -131,34 +131,6 @@ plausibly associated with mergers, and to quantify the significance of such asso
 10. *ApJ* — [DOI](https://doi.org/10.3847/1538-4357/ae4d37) — companion analysis;
    code at [`tomas-cabrera/bbhagn`](https://github.com/tomas-cabrera/bbhagn)
 
----
-
-## Meeting Log
-
-### 2026-08-24
-- Group structure set: 5–7 teams of pairs.
-- Initial AGN reference list circulated, covering lensing optical depth, the S190521g
-  candidate counterpart, and the GW190521 standard-siren measurement.
-
-### 2026-10-09
-- Workshop registration opened — all members to register.
-- Agreed to converge on a single concrete project and build out its complete toolchain.
-- ZTF flare association identified as the leading candidate; catalogue and light-curve
-  access confirmed as largely public.
-- Surojit proposed the GWOSC × ZTF cross-match workflow with time-shuffling null test
-  (see Primary Project above).
-- Noted strong overlap with recent literature; need to position our work relative to it.
-
-### 2026-10-23
-- Project discussion and introductions.
-- **Action:** Albert to give a tutorial covering ZTF flare + AGN association (with and
-  without timing information) and GW + AGN association.
-- Confirmed an existing ZTF AGN catalogue is available.
-- Shigeo proposed an additional direction: EM signatures of (micro)lensing within an AGN,
-  paralleling the lensed-GW analysis.
-
----
-
 ## Open Action Items
 
 - [ ] All members register for EAGW 2026
