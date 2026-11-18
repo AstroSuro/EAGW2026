@@ -40,7 +40,8 @@ Full instructions: **[Plotting exercises]({{ '/exercises/' | relative_url }})** 
 1. Complete the **[Git prep]({{ '/git-prep/' | relative_url }})** (`uv sync`, fetch data, first-light notebook) by **13 November**.
 2. Work through the **[plotting exercises]({{ '/exercises/' | relative_url }})** (at least Exercises 1–2).
 3. Read the 2–3 key papers (list to be sent with team assignments, target **6 November**).
-4. Bring a laptop with working Wi‑Fi; an offline USB copy of data/environment will also be available on site.
+4. Email your GitHub username to Surojit (`surojitsaha@gapp.nthu.edu.tw`), Paul (`martens.pjl@gmail.com`), Albert (`akong@gapp.nthu.edu.tw`), and Otto (`otto.hannuksela@link.cuhk.edu.hk`) so we can add you to the repo.
+5. Bring a laptop with working Wi‑Fi; an offline USB copy of data/environment will also be available on site.
 
 ## Logistics
 
