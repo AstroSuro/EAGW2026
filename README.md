@@ -87,7 +87,7 @@ plausibly associated with mergers, and to quantify the significance of such asso
 
 | Tool | Purpose | Link |
 |---|---|---|
-| `gwfast` | Fast GW parameter estimation / Fisher forecasting | https://github.com/CosmoStatGW/gwfast |
+| `gwfast` | Fast GW parameter estimation / Fisher forecasting — **not** in the default env (needs numpy<2); see [docs/git-prep.md](docs/git-prep.md) | https://github.com/CosmoStatGW/gwfast |
 | `bbhagn` | BBH–AGN association analysis (companion code to Cabrera et al.) | https://github.com/tomas-cabrera/bbhagn |
 | SKIRT | Radiative transfer for AGN/dusty media | https://skirt.ugent.be |
 | ASCL 2103.01 | AGN-related simulation code | https://ascl.net/2103.01 |

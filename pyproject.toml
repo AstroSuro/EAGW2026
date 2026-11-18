@@ -3,27 +3,60 @@ name = "eagw2026"
 version = "0.1.0"
 description = "EAGW2026 Hands-on — cross-correlate ZTF flares with GWs (AGN channels)"
 readme = "README.md"
-requires-python = ">=3.11"
+
+# Python is pinned to 3.11 on purpose: ligo.skymap 2.5.4 only publishes cp311
+# wheels, and numpy >= 2.5 requires Python >= 3.12. 3.11 is the only version
+# where the whole stack has binary wheels.
+requires-python = ">=3.11,<3.12"
+
+# Exact pins: `uv sync` gives every student the same stack. To bump, change the
+# pin here and run `uv lock`.
 dependencies = [
-  "numpy",
-  "scipy",
-  "matplotlib",
-  "jupyter",
-  "jupyterlab",
-  "notebook",
-  "astropy",
-  "h5py",
-  "pandas",
-  "tqdm",
-  "requests",
-  "gwosc",
-  "gwpy",
-  "ligo.skymap",
-  "pesummary",
-  "precession",
-  "zenodo-get",
-  "ztfquery",
+  # Numeric / astronomy core
+  "numpy==2.3.5",
+  "scipy==1.17.1",
+  "matplotlib==3.10.9",
+  "astropy==8.0.3",
+  "astropy-healpix==2.0.1",
+  "healpy==1.20.1",
+  "h5py==3.16.0",
+  "pandas==3.1.1",
+  "pyyaml==6.0.3",
+  "requests==2.34.2",
+  "tqdm==4.70.1",
+
+  # Gravitational-wave / sky-map / flare analysis
+  "gwosc==0.8.3",
+  "gwpy==4.1.0",
+  "ligo.skymap==2.5.4",
+  "pesummary==1.8.1",
+  "corner==2.3.0",
+  "emcee==3.1.6",
+  "parmap==1.7.0",
+
+  # Data retrieval
+  "precession==2.1.2",
+  "ztfquery==1.28.0",
+  "zenodo-get==3.1.0",
+
+  # Notebooks
+  "jupyter==1.1.1",
+  "jupyterlab==4.6.6",
+  "notebook==7.6.5",
 ]
 
 [dependency-groups]
-dev = ["ipython"]
+dev = [
+  "ipython==9.18.1",
+  "pytest==9.2.0",
+]
+
+[tool.uv]
+# No build backend: this is an application/analysis project, not a package.
+package = false
+
+# gwfast is intentionally absent. It pins numpy<=1.26.4 / astropy~6.0, which
+# conflicts with the stack above, and uv resolves every extra into this one
+# lockfile — so it cannot be an optional-dependency here without making
+# `uv lock` unresolvable. If you need it, build the side environment described
+# in docs/git-prep.md.

@@ -72,13 +72,14 @@ uv sync
 
 This creates `.venv/`, installs every dependency pinned in `uv.lock` / declared in `pyproject.toml` (numpy, scipy, matplotlib, jupyter, astropy, gwosc, gwpy, ligo.skymap, pesummary, precession, zenodo-get, ztfquery, …).
 
-Update later:
+Update later — the pins are exact, so bumping versions means editing `pyproject.toml` and re-locking:
 
 ```bash
-uv sync --upgrade
+uv lock --upgrade-package numpy   # or edit the pin, then:
+uv lock && uv sync
 ```
 
-Run any tool **through uv** (do not activate conda):
+Run any tool **through uv** (do not use conda):
 
 ```bash
 uv run python -c "import numpy, astropy, gwosc; print('ok')"
@@ -86,6 +87,20 @@ uv run jupyter lab
 # or
 uv run jupyter notebook
 ```
+
+### Not installed: `gwfast`
+
+`gwfast` requires `numpy<=1.26.4` and `astropy~6.0`, which contradict the numpy 2 / astropy 8 stack the school notebooks use, so it is **not** part of this environment. Only the exploratory quick-PE project needs it — give it its own environment and keep it out of the school one:
+
+```bash
+uv venv .venv-gwfast --python 3.11     # Windows: .venv-gwfast\Scripts\python.exe
+uv pip install --python .venv-gwfast/bin/python \
+    "numpy==1.26.4" "astropy==6.0.1" "jax[cpu]==0.4.30" \
+    "numdifftools==0.9.41" schwimmbad mpmath h5py scipy
+uv pip install --python .venv-gwfast/bin/python -e ./gwfast
+```
+
+Its tutorials live in `gwfast/notebooks/`; `psds/` and `WFfiles/` are already vendored, so they run offline.
 
 ## 4. Official data: PE samples, sky maps, ZTF flares
 
@@ -201,7 +216,7 @@ uv run python scripts/fetch_data.py ztf --object ZTF19abanrhr
 
 This queries:
 
-`https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves`  
+`https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves`
 
 with `POS=CIRCLE <RA> <Dec> <radius>` at the AGN position (default RA = 192.426223°, Dec = +34.824839°, radius ≈ 7″) and writes `data/ztf/ZTF19abanrhr_irsa.csv`.
 
