@@ -1,18 +1,26 @@
-<<<<<<< HEAD
-=======
+# Python
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
+
+# Editors / OS
 .DS_Store
 .env
+
+# Environments
 .venv/
+.conda/
+
+# Large data products and archives
 *.h5
 *.hdf5
 *.fits
 *.fit
 *.tar.gz
+
+# Fetched data (keep the placeholder)
 data/**
 !data/.gitkeep
-.conda/
+
+# Local backups
 uv.lock.bak
->>>>>>> 7b54e409eae3f0791f16089b02bb1f1c78e4a84b
