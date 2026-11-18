@@ -84,6 +84,5 @@ Timetable: [Hands-on sheet](https://docs.google.com/spreadsheets/d/12JaxNLvRpcNQ
 |---|---|
 | **6 Nov** | Team assignments and pre-reading (if sent before the school) |
 | **13 Nov** | Finish [Git prep]({{ '/git-prep/' | relative_url }}) and [plotting exercises]({{ '/exercises/' | relative_url }}) 1–2 |
-| **18 Nov** | Offline USB copy available on site |
 | **21 Nov** | Final poster PDF to Chunglee by 20:00 |
 | **23–24 Nov** | Posters at Yonsei; sparkler talks Tuesday morning |

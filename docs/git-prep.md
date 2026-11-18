@@ -15,7 +15,7 @@ Complete these steps before the hands-on school so Day 1 can start on science. F
 | Accounts | [GitHub](https://github.com/) (for the repo). IRSA/ZTF queries need no login for the basic light-curve API |
 | Background | Python + `numpy` / `scipy` / `matplotlib` / Jupyter basics |
 
-No HPC access is required. An offline USB copy will also be available on site (by 18 Nov).
+No HPC access is required.
 
 ## 1. Install Git and uv
 
@@ -281,10 +281,10 @@ git push -u origin team-work
 | Zenodo too large | Download **one event file** only (`zenodo_get -g '*EVENT*'`), not the whole record |
 | `ligo.skymap` / HEALPix issues on Windows | Use WSL2 |
 | Empty IRSA CSV | Widen `--radius-deg` slightly; check RA/Dec; confirm IRSA is reachable |
-| Offline at the venue | Use the USB / local-server copy prepared by 18 Nov |
+| Offline at the venue | Finish `uv sync` and data fetch before travel; venue Wi‑Fi is required for anything still missing |
 
 <div class="note warn">
-<strong>Deadline:</strong> <code>uv sync</code> + first light + at least one successful PE/skymap/ZTF fetch (or confirmed offline copy) by <strong>13 November</strong>. Email the Hands-on leads before travel if anything fails.
+<strong>Deadline:</strong> <code>uv sync</code> + first light + at least one successful PE/skymap/ZTF fetch by <strong>13 November</strong>. Email the Hands-on leads before travel if anything fails.
 </div>
 
 ## Related links
