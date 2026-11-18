@@ -4,7 +4,7 @@
 # Usage:
 #   bash install_eagw2026.sh
 #
-# The active package list lives in installtions.txt.  Entries commented out
+# The active package list lives in installations.txt.  Entries commented out
 # there (currently lalsuite and teobresums) remain intentionally optional.
 
 set -euo pipefail
@@ -12,7 +12,7 @@ set -euo pipefail
 ENV_NAME="eagw2026"
 PYTHON_VERSION="3.11"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REQUIREMENTS_FILE="${SCRIPT_DIR}/installtions.txt"
+REQUIREMENTS_FILE="${SCRIPT_DIR}/installations.txt"
 
 if ! command -v conda >/dev/null 2>&1; then
     echo "Error: Conda was not found on PATH." >&2
