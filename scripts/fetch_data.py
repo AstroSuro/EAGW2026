@@ -26,11 +26,13 @@ Outputs land under ``data/`` (override with ``EAGW_DATA_ROOT`` or ``--data-root`
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import os
 import subprocess
 import sys
 import tarfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -119,6 +121,12 @@ def _set_data_root(root: Path) -> None:
 
 
 def _download(url: str, dest: Path, overwrite: bool = False) -> Path:
+    """Download ``url`` to ``dest`` atomically, with retries.
+
+    Writes to a ``.partial`` file and renames only on success, and checks the
+    body against ``Content-Length``, so a truncated transfer can never be
+    mistaken for a complete cached file.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists() and not overwrite and dest.stat().st_size > 0:
         print(f"  exists, skip: {dest}")
@@ -126,14 +134,34 @@ def _download(url: str, dest: Path, overwrite: bool = False) -> Path:
     print(f"  GET {url}")
     print(f"  ->  {dest}")
     tmp = dest.with_suffix(dest.suffix + ".partial")
-    try:
-        urllib.request.urlretrieve(url, tmp)
-        tmp.replace(dest)
-    except Exception:
-        if tmp.exists():
+    last: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(url, timeout=300) as resp, tmp.open("wb") as fh:
+                expected = resp.headers.get("Content-Length")
+                while True:
+                    chunk = resp.read(1 << 20)
+                    if not chunk:
+                        break
+                    fh.write(chunk)
+            got = tmp.stat().st_size
+            if expected is not None and int(expected) != got:
+                raise OSError(f"truncated download: {got} of {expected} bytes")
+            tmp.replace(dest)
+            return dest
+        except Exception as exc:  # noqa: BLE001 - retry transient network errors
+            last = exc
             tmp.unlink(missing_ok=True)
-        raise
-    return dest
+            print(f"  download failed ({exc}); retry {attempt}/3")
+            time.sleep(2 * attempt)
+    raise RuntimeError(f"could not download {url}") from last
+
+
+def _validate_gzip(path: Path) -> None:
+    """Raise unless ``path`` is a complete gzip stream (catches truncation)."""
+    with gzip.open(path, "rb") as fh:
+        while fh.read(1 << 20):
+            pass
 
 
 def _event_name_candidates(event: str) -> list[str]:
@@ -521,6 +549,10 @@ def fetch_zenodo_record(record_id: str, dest_dir: Path, files: list[str] | None 
     subprocess.check_call(cmd)
 
 
+#: Backwards-compatible alias: notebooks import either spelling.
+fetch_skymaps = fetch_skymaps_gwosc
+
+
 def fetch_skymaps_zenodo_bulk(catalog: str) -> Path:
     """Download archived sky-map tarball from the official Zenodo PE data release."""
     if catalog not in ZENODO_PE:
@@ -534,7 +566,15 @@ def fetch_skymaps_zenodo_bulk(catalog: str) -> Path:
         f"{urllib.parse.quote(name)}/content"
     )
     dest = SKY_DIR / name
+    # A truncated archive must never be reused from the cache.
+    if dest.exists():
+        try:
+            _validate_gzip(dest)
+        except Exception as exc:  # noqa: BLE001 - corrupt cache
+            print(f"  cached archive is incomplete ({exc}); re-downloading")
+            dest.unlink()
     _download(url, dest)
+    _validate_gzip(dest)
     extract_dir = SKY_DIR / catalog
     if not _dir_has_skymap_fits(extract_dir):
         print(f"  extracting -> {extract_dir}")

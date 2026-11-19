@@ -110,7 +110,7 @@ Helper script (all commands via `uv run`):
 
 ```bash
 uv run python scripts/fetch_data.py --help
-uv run python scripts/fetch_data.py all --events GW190521 GW231123
+uv run python scripts/fetch_data.py all --events GW190521
 ```
 
 Outputs go to:
@@ -123,22 +123,35 @@ Outputs go to:
 
 ### 4a. Parameter estimation samples (official)
 
-**Preferred (per event): GWOSC Event API → HDF5 link**
+**Preferred (per event): Zenodo → HDF5 link**
+
+GWOSC's public API publishes **strain files only** — PE samples live in the LVK
+Zenodo data releases. The script resolves the event on GWOSC, then pulls the
+matching per-event file straight from Zenodo:
 
 ```bash
-uv run python scripts/fetch_data.py pe --events GW190521 GW231123
+uv run python scripts/fetch_data.py pe --events GW190521
 ```
 
 What this does:
 
-1. Resolves the event on the [GWOSC Event API](https://gwosc.org/eventapi/html/) (GWTC catalogs).
-2. Downloads the official PE data-release HDF5 linked from that event page.
+1. Resolves the event on the [GWOSC API v2](https://gwosc.org/eventapi/html/) (GWTC catalogs).
+2. Lists the Zenodo record for that catalog and downloads **only** the per-event
+   PE file (`IGWN-GWTC2p1-v2-GW190521_030229_PEDataRelease_mixed_cosmo.h5`,
+   ~99 MB, saved as `data/pe/GW190521_PEDataRelease.hdf5`).
 
-Manual alternative — open the event on GWOSC and download the PE file from the event page, e.g.:
+Catalog → Zenodo record used by the script:
+
+| Catalog | Events | Zenodo |
+|---|---|---|
+| GWTC-2.1 | O1/O2/O3a (incl. GW190521) | [6513631](https://zenodo.org/records/6513631) |
+| GWTC-5.0 | O4a/O4b | [20348005](https://zenodo.org/records/20348005) + [20348006](https://zenodo.org/records/20348006) |
+
+Manual alternative — open the event on GWOSC and use the PE link on the event page, e.g.:
 
 - Portal: [https://gwosc.org/eventapi/html/](https://gwosc.org/eventapi/html/)
-- Catalog docs: [GWTC-5.0](https://gwosc.org/GWTC-5.0/) (O4b / GW231123 and other GWTC-5 events)
-- GW190521 lives in earlier catalogs (GWTC-2.1 / GWTC-3); the script walks catalogs until it finds the event.
+- Catalog docs: [GWTC-5.0](https://gwosc.org/GWTC-5.0/) (O4b / other GWTC-5 events)
+- GW190521 lives in earlier catalogs (GWTC-2.1 / GWTC-3).
 
 **Bulk (large): Zenodo GWTC-5.0 PE data release**
 
@@ -155,7 +168,7 @@ uv run zenodo_get 20348006 -o data/pe/zenodo_20348006
 To pull **one** named file from Zenodo without the whole record, use the record file URL from the Zenodo page, or:
 
 ```bash
-uv run zenodo_get 20348005 -g '*GW231123*' -o data/pe/zenodo_20348005
+uv run zenodo_get 20348005 -g '*GW250114*' -o data/pe/zenodo_20348005
 ```
 
 Read PE HDF5 with `pesummary` / `h5py`:
@@ -171,10 +184,15 @@ PY
 
 ### 4b. Sky maps (official)
 
-**Preferred (per event): GWOSC → FITS skymap**
+**Preferred (per event): Zenodo archived sky map → FITS**
+
+GWOSC does **not** serve sky-map FITS files through its API; the official maps
+are published as per-catalog tarballs on Zenodo. The helper downloads the
+tarball once, then copies the matching map to a stable per-event name:
 
 ```bash
-uv run python scripts/fetch_data.py skymaps --events GW190521 GW231123
+uv run python scripts/fetch_data.py skymaps --events GW190521
+# -> data/skymaps/GW190521_skymap.fits
 ```
 
 Use with `ligo.skymap`:
@@ -191,11 +209,18 @@ PY
 
 ```bash
 # GWTC-5.0 archived PE skymaps
-uv run python scripts/fetch_data.py skymaps --events GW231123 --bulk gwtc5
+uv run python scripts/fetch_data.py skymaps --events GW250114_082203 --bulk gwtc5
 
 # GWTC-2.1 archived PE skymaps (covers GW190521)
 uv run python scripts/fetch_data.py skymaps --events GW190521 --bulk gwtc2.1
 ```
+
+`--catalog gwtc2.1|gwtc5` pins the archive instead of auto-selecting it.
+
+> Events that are not in a bundled archive print an explicit error instead of
+> failing silently. Example: **GW231123** is an O4b discovery-paper event, so it
+> is absent from the GWTC-5.0 archived skymaps and from the GWOSC API; use a
+> catalog event such as **GW190521** or **GW190814** for the exercises.
 
 Direct tarball references used by the script:
 
